@@ -87,3 +87,4 @@ npm run start
 - SEO base: metadata, Open Graph, `sitemap.xml`, `robots.txt`
 - Estructura semantica y responsive para movil/tablet/desktop
 - Componentes modulares y reutilizables
+# NACHOMASDESIGN
