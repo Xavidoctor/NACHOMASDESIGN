@@ -6,6 +6,7 @@ import { HeroSection } from "@/components/HeroSection";
 import { Navbar } from "@/components/Navbar";
 import { VisualGallery } from "@/components/VisualGallery";
 import { WorksSection } from "@/components/WorksSection";
+import { featuredProjects } from "@/content/projects";
 import { getContentByLocale, getWhatsappUrl } from "@/content/site-content";
 
 export default function HomePage() {
@@ -17,8 +18,10 @@ export default function HomePage() {
       <Navbar
         brand={content.nav.brand}
         links={content.nav.links}
-        contactCta={content.nav.contactCta}
-        contactHref="#contacto"
+        email={content.contact.email}
+        copyEmailLabel={content.nav.copyEmail}
+        contactWhatsappLabel={content.nav.contactWhatsapp}
+        whatsappUrl={whatsappUrl}
       />
 
       <main>
@@ -30,7 +33,12 @@ export default function HomePage() {
           media={content.hero.media}
         />
 
-        <WorksSection heading={content.works.heading} intro={content.works.intro} items={content.works.recent} />
+        <WorksSection
+          heading={content.works.homeHeading}
+          intro={content.works.homeIntro}
+          items={featuredProjects.slice(0, 3)}
+          sectionId="proyectos"
+        />
 
         <AboutSection heading={content.aboutStudio.heading} paragraphs={content.aboutStudio.paragraphs} />
 
@@ -50,7 +58,7 @@ export default function HomePage() {
         />
       </main>
 
-      <Footer brandLine={content.footer.brandLine} copyright={content.footer.copyright} />
+      <Footer brandLine={content.footer.brandLine} copyright={content.footer.copyright} socials={content.contact.socials} />
     </>
   );
 }

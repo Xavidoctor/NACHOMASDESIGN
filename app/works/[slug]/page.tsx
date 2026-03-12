@@ -1,0 +1,116 @@
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ContactSection } from "@/components/ContactSection";
+import { Footer } from "@/components/Footer";
+import { Navbar } from "@/components/Navbar";
+import { getProjectBySlug, projects } from "@/content/projects";
+import { getContentByLocale, getWhatsappUrl } from "@/content/site-content";
+
+type ProjectPageProps = {
+  params: { slug: string };
+};
+
+export function generateStaticParams() {
+  return projects.map((project) => ({ slug: project.slug }));
+}
+
+export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
+  const { slug } = params;
+  const project = getProjectBySlug(slug);
+
+  if (!project) {
+    return {
+      title: "Proyecto no encontrado | Nacho Mas Design"
+    };
+  }
+
+  return {
+    title: `${project.title} | Nacho Mas Design`,
+    description: project.shortDescription,
+    openGraph: {
+      title: `${project.title} | Nacho Mas Design`,
+      description: project.shortDescription,
+      images: [project.coverImage]
+    }
+  };
+}
+
+export default async function ProjectDetailPage({ params }: ProjectPageProps) {
+  const { slug } = params;
+  const project = getProjectBySlug(slug);
+
+  if (!project) notFound();
+
+  const content = getContentByLocale();
+  const whatsappUrl = getWhatsappUrl();
+
+  return (
+    <>
+      <Navbar
+        brand={content.nav.brand}
+        links={content.nav.links}
+        email={content.contact.email}
+        copyEmailLabel={content.nav.copyEmail}
+        contactWhatsappLabel={content.nav.contactWhatsapp}
+        whatsappUrl={whatsappUrl}
+      />
+
+      <main className="pt-24">
+        <section className="section-padding pb-16 pt-8">
+          <div className="container-width space-y-8">
+            <Link href="/works" className="focus-ring inline-flex text-xs uppercase tracking-[0.2em] text-muted transition-colors hover:text-foreground">
+              ← Volver a Works
+            </Link>
+
+            <div className="space-y-6 border-t border-border pt-8">
+              <h1 className="font-display text-6xl uppercase leading-[0.92] tracking-[0.02em] text-foreground md:text-9xl">{project.title}</h1>
+              <p className="max-w-3xl text-base text-muted md:text-lg">{project.shortDescription}</p>
+            </div>
+
+            <div className="relative aspect-[16/9] overflow-hidden border-y border-border py-6">
+              <Image src={project.heroImage ?? project.coverImage} alt={project.title} fill sizes="100vw" className="object-cover" priority />
+            </div>
+
+            <div className="grid gap-12 border-b border-border pb-10 pt-6 md:grid-cols-[0.6fr_1.4fr]">
+              <div className="space-y-4 text-xs uppercase tracking-[0.16em] text-muted">
+                <p>{project.category}</p>
+                {project.year ? <p>{project.year}</p> : null}
+                <div className="space-y-2 pt-4">
+                  {project.services.map((service) => (
+                    <p key={service}>{service}</p>
+                  ))}
+                </div>
+              </div>
+              <p className="max-w-4xl text-base leading-relaxed text-foreground/86 md:text-xl">{project.fullDescription}</p>
+            </div>
+
+            <div className="space-y-10 pt-2">
+              {project.gallery.map((image, index) => (
+                <div key={`${project.slug}-${image}-${index}`} className="relative overflow-hidden border-t border-border pt-6">
+                  <div className={`relative overflow-hidden ${index % 2 === 0 ? "aspect-[16/10]" : "aspect-[16/12]"}`}>
+                    <Image src={image} alt={`${project.title} imagen ${index + 1}`} fill sizes="100vw" className="object-cover" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <ContactSection
+          heading={content.contact.heading}
+          intro={content.contact.intro}
+          email={content.contact.email}
+          contactLabel={content.contact.contactLabel}
+          copyEmailLabel={content.contact.copyEmail}
+          whatsappLabel={content.contact.whatsappLabel}
+          whatsappUrl={whatsappUrl}
+          socials={content.contact.socials}
+        />
+      </main>
+
+      <Footer brandLine={content.footer.brandLine} copyright={content.footer.copyright} socials={content.contact.socials} />
+    </>
+  );
+}
