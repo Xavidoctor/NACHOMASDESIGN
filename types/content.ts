@@ -1,0 +1,77 @@
+export type PortfolioProject = {
+  slug: string;
+  title: string;
+  category: string;
+  shortDescription: string;
+  fullDescription: string;
+  coverImage: string;
+  heroImage?: string;
+  gallery: string[];
+  year?: string;
+  services: string[];
+  featured: boolean;
+};
+
+export type SocialLink = {
+  label: string;
+  href: string;
+};
+
+export type SiteContent = {
+  metadata: {
+    title: string;
+    description: string;
+  };
+  nav: {
+    brand: string;
+    links: Array<{ label: string; href: string }>;
+    copyEmail: string;
+    contactWhatsapp: string;
+  };
+  hero: {
+    label: string;
+    marqueeText: string;
+    paragraph: string;
+    disciplines: string[];
+    media: {
+      type: "video" | "image";
+      videoSrc?: string;
+      imageSrc?: string;
+      posterSrc?: string;
+      fallbackColor?: string;
+      overlayOpacity?: number;
+    };
+  };
+  works: {
+    homeHeading: string;
+    homeIntro: string;
+    pageHeading: string;
+    pageIntro: string;
+  };
+  aboutStudio: {
+    heading: string;
+    paragraphs: string[];
+  };
+  expertise: {
+    heading: string;
+    intro: string;
+    items: string[];
+  };
+  gallery: {
+    heading: string;
+    images: Array<{ src: string; alt: string }>;
+  };
+  contact: {
+    heading: string;
+    intro: string;
+    email: string;
+    contactLabel: string;
+    copyEmail: string;
+    whatsappLabel: string;
+    socials: SocialLink[];
+  };
+  footer: {
+    brandLine: string;
+    copyright: string;
+  };
+};

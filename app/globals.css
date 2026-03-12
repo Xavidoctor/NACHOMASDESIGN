@@ -1,0 +1,56 @@
+@import url("https://api.fontshare.com/v2/css?f[]=switzer@300,400,500,600,700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+  font-family: "Switzer", sans-serif;
+}
+
+.section-padding {
+  @apply px-6 py-20 md:px-12 md:py-28 lg:px-20;
+}
+
+.container-width {
+  @apply mx-auto w-full max-w-[1280px];
+}
+
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+}
+
+.editorial-kicker {
+  @apply text-[11px] uppercase tracking-[0.24em] text-muted;
+}
+
+.section-divider {
+  @apply border-t border-border;
+}
+
+.hero-marquee-mask {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.hero-marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+.hero-marquee-group {
+  display: flex;
+  align-items: center;
+  gap: clamp(2rem, 3vw, 4rem);
+  padding-right: clamp(2rem, 3vw, 4rem);
+}
