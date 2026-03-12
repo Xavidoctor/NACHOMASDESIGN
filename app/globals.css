@@ -18,11 +18,11 @@ body {
 }
 
 .section-padding {
-  @apply px-6 py-20 md:px-12 md:py-28 lg:px-20;
+  @apply px-0 py-20 md:py-28;
 }
 
 .container-width {
-  @apply mx-auto w-full max-w-[1280px];
+  @apply w-full max-w-none;
 }
 
 .focus-ring {

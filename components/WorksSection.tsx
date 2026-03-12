@@ -1,18 +1,20 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "motion/react";
-import type { ProjectItem } from "@/types/content";
+import type { PortfolioProject } from "@/types/content";
 
 type WorksSectionProps = {
   heading: string;
   intro: string;
-  items: ProjectItem[];
+  items: PortfolioProject[];
+  sectionId?: string;
 };
 
-export function WorksSection({ heading, intro, items }: WorksSectionProps) {
+export function WorksSection({ heading, intro, items, sectionId }: WorksSectionProps) {
   return (
-    <section id="proyectos" className="section-padding pt-16 md:pt-24">
+    <section id={sectionId} className="section-padding pt-16 md:pt-24">
       <div className="container-width">
         <div className="mb-16 grid gap-7 border-t border-border pt-8 lg:grid-cols-[1fr_0.8fr]">
           <h2 className="font-display text-5xl uppercase tracking-[0.02em] text-foreground md:text-8xl">{heading}</h2>
@@ -22,7 +24,7 @@ export function WorksSection({ heading, intro, items }: WorksSectionProps) {
         <div className="space-y-24 md:space-y-32">
           {items.map((item, index) => (
             <motion.article
-              key={item.id}
+              key={item.slug}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.35 }}
@@ -32,17 +34,24 @@ export function WorksSection({ heading, intro, items }: WorksSectionProps) {
               <div className={`space-y-5 lg:col-span-4 ${index % 2 === 1 ? "lg:order-2" : ""}`}>
                 <p className="editorial-kicker">{item.category}</p>
                 <h3 className="font-display text-4xl uppercase leading-[0.96] tracking-[0.02em] text-foreground md:text-6xl">{item.title}</h3>
+                <p className="max-w-md text-sm leading-relaxed text-muted">{item.shortDescription}</p>
+                <Link href={`/works/${item.slug}`} className="focus-ring inline-flex text-xs uppercase tracking-[0.2em] text-foreground transition-opacity hover:opacity-65">
+                  Ver proyecto
+                </Link>
               </div>
 
-              <div className={`relative aspect-[16/10] overflow-hidden lg:col-span-8 ${index % 2 === 1 ? "lg:order-1" : ""}`}>
+              <Link
+                href={`/works/${item.slug}`}
+                className={`relative aspect-[16/10] overflow-hidden lg:col-span-8 ${index % 2 === 1 ? "lg:order-1" : ""}`}
+              >
                 <Image
-                  src={item.image}
-                  alt={item.alt}
+                  src={item.coverImage}
+                  alt={item.title}
                   fill
                   sizes="(max-width: 1024px) 100vw, 66vw"
                   className="object-cover transition-transform duration-700 hover:scale-[1.02]"
                 />
-              </div>
+              </Link>
             </motion.article>
           ))}
         </div>

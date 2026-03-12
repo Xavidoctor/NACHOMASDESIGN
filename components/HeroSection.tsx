@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
 
 type HeroMedia = {
   type: "video" | "image";
@@ -23,12 +24,33 @@ type HeroSectionProps = {
 export function HeroSection({ label, marqueeText, paragraph, disciplines, media }: HeroSectionProps) {
   const overlayOpacity = media.overlayOpacity ?? 0.38;
   const marqueeItems = [marqueeText, marqueeText, marqueeText];
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [videoFailed, setVideoFailed] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const setRate = () => {
+      video.playbackRate = 0.85;
+    };
+
+    setRate();
+    video.addEventListener("loadedmetadata", setRate);
+    video.addEventListener("play", setRate);
+
+    return () => {
+      video.removeEventListener("loadedmetadata", setRate);
+      video.removeEventListener("play", setRate);
+    };
+  }, [media.videoSrc]);
 
   return (
     <section id="inicio" className="relative min-h-screen overflow-hidden">
       <div className="absolute inset-0">
-        {media.type === "video" && media.videoSrc ? (
+        {media.type === "video" && media.videoSrc && !videoFailed ? (
           <video
+            ref={videoRef}
             className="h-full w-full object-cover"
             src={media.videoSrc}
             poster={media.posterSrc}
@@ -36,6 +58,7 @@ export function HeroSection({ label, marqueeText, paragraph, disciplines, media 
             muted
             loop
             playsInline
+            onError={() => setVideoFailed(true)}
           />
         ) : media.imageSrc ? (
           <Image src={media.imageSrc} alt="Fondo principal del hero" fill className="object-cover" priority />
@@ -64,7 +87,7 @@ export function HeroSection({ label, marqueeText, paragraph, disciplines, media 
         </motion.div>
       </div>
 
-      <div className="relative z-10 flex min-h-screen items-end px-6 pb-12 md:px-12 md:pb-16 lg:px-20 lg:pb-20">
+      <div className="relative z-10 flex min-h-screen items-end pb-12 md:pb-16 lg:pb-20">
         <div className="container-width w-full">
           <div className="grid gap-10 border-t border-foreground/20 pt-6 md:grid-cols-[0.9fr_1.1fr] md:items-end">
             <div>
