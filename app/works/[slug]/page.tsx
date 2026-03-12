@@ -9,7 +9,7 @@ import { getProjectBySlug, projects } from "@/content/projects";
 import { getContentByLocale, getWhatsappUrl } from "@/content/site-content";
 
 type ProjectPageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 export function generateStaticParams() {
@@ -17,7 +17,7 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
-  const { slug } = params;
+  const { slug } = await params;
   const project = getProjectBySlug(slug);
 
   if (!project) {
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
 }
 
 export default async function ProjectDetailPage({ params }: ProjectPageProps) {
-  const { slug } = params;
+  const { slug } = await params;
   const project = getProjectBySlug(slug);
 
   if (!project) notFound();
