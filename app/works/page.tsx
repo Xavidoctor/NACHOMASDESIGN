@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { ContactSection } from "@/components/ContactSection";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
@@ -5,8 +6,14 @@ import { WorksSection } from "@/components/WorksSection";
 import { projects } from "@/content/projects";
 import { getContentByLocale, getWhatsappUrl } from "@/content/site-content";
 
+const content = getContentByLocale();
+
+export const metadata: Metadata = {
+  title: `${content.works.pageHeading} | Nacho Mas Design`,
+  description: content.works.pageIntro
+};
+
 export default function WorksPage() {
-  const content = getContentByLocale();
   const whatsappUrl = getWhatsappUrl();
 
   return (

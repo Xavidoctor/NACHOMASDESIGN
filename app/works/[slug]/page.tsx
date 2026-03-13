@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ContactSection } from "@/components/ContactSection";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
+import { ProjectDetailHero } from "@/components/ProjectDetailHero";
+import { ProjectGallery } from "@/components/ProjectGallery";
 import { getProjectBySlug, projects } from "@/content/projects";
 import { getContentByLocale, getWhatsappUrl } from "@/content/site-content";
 
@@ -64,14 +65,7 @@ export default async function ProjectDetailPage({ params }: ProjectPageProps) {
               ← Volver a Works
             </Link>
 
-            <div className="space-y-6 border-t border-border pt-8">
-              <h1 className="font-display text-6xl uppercase leading-[0.92] tracking-[0.02em] text-foreground md:text-9xl">{project.title}</h1>
-              <p className="max-w-3xl text-base text-muted md:text-lg">{project.shortDescription}</p>
-            </div>
-
-            <div className="relative aspect-[16/9] overflow-hidden border-y border-border py-6">
-              <Image src={project.heroImage ?? project.coverImage} alt={project.title} fill sizes="100vw" className="object-cover" priority />
-            </div>
+            <ProjectDetailHero title={project.title} shortDescription={project.shortDescription} image={project.heroImage ?? project.coverImage} />
 
             <div className="grid gap-12 border-b border-border pb-10 pt-6 md:grid-cols-[0.6fr_1.4fr]">
               <div className="space-y-4 text-xs uppercase tracking-[0.16em] text-muted">
@@ -86,15 +80,7 @@ export default async function ProjectDetailPage({ params }: ProjectPageProps) {
               <p className="max-w-4xl text-base leading-relaxed text-foreground/86 md:text-xl">{project.fullDescription}</p>
             </div>
 
-            <div className="space-y-10 pt-2">
-              {project.gallery.map((image, index) => (
-                <div key={`${project.slug}-${image}-${index}`} className="relative overflow-hidden border-t border-border pt-6">
-                  <div className={`relative overflow-hidden ${index % 2 === 0 ? "aspect-[16/10]" : "aspect-[16/12]"}`}>
-                    <Image src={image} alt={`${project.title} imagen ${index + 1}`} fill sizes="100vw" className="object-cover" />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ProjectGallery title={project.title} images={project.gallery} />
           </div>
         </section>
 

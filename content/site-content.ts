@@ -50,6 +50,13 @@ export const contentEs: SiteContent = {
     pageHeading: "Works",
     pageIntro: "Listado completo de proyectos de portfolio, cada uno con su pagina de detalle."
   },
+  showreel: {
+    heading: "Selected Motion",
+    caption: "CGI / Spatial Narratives",
+    videoSrc: "/assets/video-02.mp4",
+    posterSrc: "/assets/work-03.png",
+    overlayOpacity: 0.24
+  },
   aboutStudio: {
     heading: "Sobre mi",
     paragraphs: [
@@ -78,8 +85,8 @@ export const contentEs: SiteContent = {
       { src: "/assets/work-01.png", alt: "Lampara blanca junto a sofa azul" },
       { src: "/assets/work-02.png", alt: "Interior minimal frente al mar" },
       { src: "/assets/work-03.png", alt: "Pabellon organico en playa exterior" },
-      { src: "/assets/gallery-04.png", alt: "Interior de pabellon organico" },
-      { src: "/assets/gallery-05.png", alt: "Arquitectura minimal sobre el agua" }
+      { src: "/assets/renders/ARCH3.png", alt: "Interior de pabellon organico" },
+      { src: "/assets/renders/ARCH4.png", alt: "Arquitectura minimal sobre el agua" }
     ]
   },
   contact: {

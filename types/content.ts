@@ -48,6 +48,13 @@ export type SiteContent = {
     pageHeading: string;
     pageIntro: string;
   };
+  showreel: {
+    heading: string;
+    caption: string;
+    videoSrc: string;
+    posterSrc?: string;
+    overlayOpacity?: number;
+  };
   aboutStudio: {
     heading: string;
     paragraphs: string[];

@@ -3,6 +3,7 @@ import { ContactSection } from "@/components/ContactSection";
 import { ExpertiseSection } from "@/components/ExpertiseSection";
 import { Footer } from "@/components/Footer";
 import { HeroSection } from "@/components/HeroSection";
+import { MotionShowreelSection } from "@/components/MotionShowreelSection";
 import { Navbar } from "@/components/Navbar";
 import { VisualGallery } from "@/components/VisualGallery";
 import { WorksSection } from "@/components/WorksSection";
@@ -38,6 +39,14 @@ export default function HomePage() {
           intro={content.works.homeIntro}
           items={featuredProjects.slice(0, 3)}
           sectionId="proyectos"
+        />
+
+        <MotionShowreelSection
+          heading={content.showreel.heading}
+          caption={content.showreel.caption}
+          videoSrc={content.showreel.videoSrc}
+          posterSrc={content.showreel.posterSrc}
+          overlayOpacity={content.showreel.overlayOpacity}
         />
 
         <AboutSection heading={content.aboutStudio.heading} paragraphs={content.aboutStudio.paragraphs} />
