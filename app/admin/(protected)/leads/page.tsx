@@ -1,14 +1,13 @@
-import { ModulePlaceholder } from "@/components/admin/ModulePlaceholder";
-import { requireEditorPage } from "@/src/lib/auth/require-page-role";
+import { LeadsManager } from "@/components/admin/LeadsManager";
+import { requireAdminPage } from "@/src/lib/auth/require-page-role";
 
 export default async function AdminLeadsPage() {
-  await requireEditorPage();
+  const { supabase } = await requireAdminPage();
+  const { data } = await supabase
+    .from("contact_leads")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(250);
 
-  return (
-    <ModulePlaceholder
-      title="Contactos"
-      description="La bandeja de formularios y flujo de estados para contactos se activa en P4."
-      phase="P4"
-    />
-  );
+  return <LeadsManager initialLeads={data ?? []} />;
 }

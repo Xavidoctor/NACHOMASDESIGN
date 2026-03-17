@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireAdminApi, requireEditorApi } from "@/src/lib/auth/require-api-role";
+import { requireAdminApi } from "@/src/lib/auth/require-api-role";
 import { writeAuditLog } from "@/src/lib/cms/audit";
 import { listSettings, upsertSetting } from "@/src/lib/cms/queries";
 import { parseSettingValue, settingUpsertSchema } from "@/src/lib/validators/settings-schema";
@@ -44,7 +44,7 @@ async function handleUpsert(request: NextRequest) {
 }
 
 export async function GET() {
-  const auth = await requireEditorApi();
+  const auth = await requireAdminApi();
   if (!auth.ok) {
     return auth.response;
   }

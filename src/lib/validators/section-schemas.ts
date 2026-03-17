@@ -28,7 +28,7 @@ const linkItemSchema = z.object({
 
 const imageItemSchema = z.object({
   src: z.string().trim().min(1).max(500),
-  alt: z.string().trim().min(1).max(240),
+  alt: z.string().trim().max(240),
 });
 
 const heroMediaSchema = z.object({
@@ -176,8 +176,8 @@ export function createDefaultSectionData(sectionKey: z.infer<typeof sectionKeySc
       items: ["Modelado 3D"],
     },
     recent_works: {
-      heading: "Recent Works",
-      intro: "Selecciones recientes de portfolio.",
+      heading: "Proyectos recientes",
+      intro: "Selecciones recientes del portfolio.",
       showFeaturedOnly: true,
       limit: 3,
     },
@@ -190,12 +190,12 @@ export function createDefaultSectionData(sectionKey: z.infer<typeof sectionKeySc
     navbar: {
       brand: "Nacho Mas Design",
       links: [
-        { label: "Home", href: "/" },
-        { label: "About", href: "/#sobre-mi" },
-        { label: "Works", href: "/works" },
+        { label: "Inicio", href: "/" },
+        { label: "Sobre mí", href: "/#sobre-mi" },
+        { label: "Proyectos", href: "/works" },
       ],
-      copyEmail: "Copy Email",
-      contactWhatsapp: "Contact / WhatsApp",
+      copyEmail: "Copiar correo",
+      contactWhatsapp: "Contacto / WhatsApp",
     },
     footer: {
       brandLine: "Nacho Mas Design",
@@ -203,11 +203,11 @@ export function createDefaultSectionData(sectionKey: z.infer<typeof sectionKeySc
       links: [],
     },
     works_listing_header: {
-      heading: "Works",
+      heading: "Proyectos",
       intro: "Listado completo de proyectos de portfolio.",
     },
     featured_projects: {
-      heading: "Featured",
+      heading: "Destacados",
       projectSlugs: [],
     },
     works_ordering: {

@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import { MediaLibraryPicker } from "@/components/admin/MediaLibraryPicker";
+import {
+  IMAGE_ACCEPT,
+  VIDEO_ACCEPT,
+  normalizeUploadError,
+  uploadAssetToLibrary,
+} from "@/src/lib/admin/media-client";
 import {
   createDefaultSectionData,
   pageKeySchema,
@@ -40,6 +47,14 @@ type SectionFormState = {
   enabled: boolean;
   data: Record<string, unknown>;
 };
+
+type MediaFieldTarget =
+  | "hero.videoSrc"
+  | "hero.imageSrc"
+  | "hero.posterSrc"
+  | "showreel.videoSrc"
+  | "showreel.posterSrc"
+  | "visual_gallery";
 
 const sectionToPage: Record<SectionKey, PageKey> = {
   hero: "home",
@@ -205,6 +220,81 @@ function TextareaInput({
         className="w-full rounded-md border border-white/15 bg-black/40 px-3 py-2"
       />
     </label>
+  );
+}
+
+function MediaUrlField({
+  label,
+  value,
+  placeholder,
+  kind,
+  uploading,
+  progress,
+  onChange,
+  onUpload,
+  onPickFromLibrary,
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  kind: "image" | "video";
+  uploading: boolean;
+  progress: number;
+  onChange: (value: string) => void;
+  onUpload: () => void;
+  onPickFromLibrary: () => void;
+}) {
+  return (
+    <div className="space-y-2 rounded-md border border-white/10 bg-black/25 p-3">
+      <label className="space-y-1 text-sm">
+        <span className="text-neutral-300">{label}</span>
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder ?? "https://media.nachomasdesign.com/..."}
+          className="w-full rounded-md border border-white/15 bg-black/40 px-3 py-2"
+        />
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onUpload}
+          disabled={uploading}
+          className="rounded-md border border-white/20 px-3 py-1.5 text-xs text-neutral-200 transition-colors hover:bg-white/10 disabled:cursor-not-allowed"
+        >
+          {uploading ? "Subiendo..." : "Subir a R2"}
+        </button>
+        <button
+          type="button"
+          onClick={onPickFromLibrary}
+          className="rounded-md border border-white/20 px-3 py-1.5 text-xs text-neutral-200 transition-colors hover:bg-white/10"
+        >
+          Elegir de biblioteca
+        </button>
+      </div>
+
+      {uploading ? (
+        <div className="space-y-1">
+          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full bg-emerald-300 transition-all"
+              style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-neutral-400">Subiendo archivo... {progress}%</p>
+        </div>
+      ) : null}
+
+      {value.trim() ? (
+        <div className="overflow-hidden rounded-md border border-white/10 bg-black/40">
+          {kind === "image" ? (
+            <img src={value} alt="Vista previa del recurso" className="h-36 w-full object-cover" />
+          ) : (
+            <video src={value} controls className="h-36 w-full object-cover" />
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -378,6 +468,25 @@ export function SectionsManager() {
   const [error, setError] = useState("");
   const [showAdvancedJson, setShowAdvancedJson] = useState(false);
   const [rawJsonText, setRawJsonText] = useState("{}");
+  const [uploadingTarget, setUploadingTarget] = useState<MediaFieldTarget | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<Record<MediaFieldTarget, number>>({
+    "hero.videoSrc": 0,
+    "hero.imageSrc": 0,
+    "hero.posterSrc": 0,
+    "showreel.videoSrc": 0,
+    "showreel.posterSrc": 0,
+    visual_gallery: 0,
+  });
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [libraryTarget, setLibraryTarget] = useState<MediaFieldTarget | null>(null);
+  const [galleryDropActive, setGalleryDropActive] = useState(false);
+
+  const heroVideoInputRef = useRef<HTMLInputElement | null>(null);
+  const heroImageInputRef = useRef<HTMLInputElement | null>(null);
+  const heroPosterInputRef = useRef<HTMLInputElement | null>(null);
+  const showreelVideoInputRef = useRef<HTMLInputElement | null>(null);
+  const showreelPosterInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   async function loadRows() {
     setIsLoading(true);
@@ -420,6 +529,182 @@ export function SectionsManager() {
         [field]: value,
       },
     }));
+  }
+
+  function setHeroMediaField(field: "videoSrc" | "imageSrc" | "posterSrc", value: string) {
+    setForm((prev) => {
+      const media = asRecord(prev.data.media);
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          media: {
+            ...media,
+            [field]: value,
+          },
+        },
+      };
+    });
+  }
+
+  function setTargetProgress(target: MediaFieldTarget, value: number) {
+    setUploadProgress((prev) => ({
+      ...prev,
+      [target]: Math.max(0, Math.min(100, value)),
+    }));
+  }
+
+  async function uploadSingleMediaField(params: {
+    file: File;
+    target: Exclude<MediaFieldTarget, "visual_gallery">;
+    expectedKind: "image" | "video";
+    onDone: (publicUrl: string) => void;
+  }) {
+    setUploadingTarget(params.target);
+    setTargetProgress(params.target, 0);
+    setMessage("");
+    setError("");
+    try {
+      const asset = await uploadAssetToLibrary({
+        file: params.file,
+        expectedKind: params.expectedKind,
+        scope: "section",
+        pageKey: form.pageKey,
+        sectionKey: form.sectionKey,
+        onProgress: (value) => setTargetProgress(params.target, value),
+      });
+      params.onDone(asset.public_url);
+      setMessage("Archivo subido correctamente.");
+    } catch (uploadError) {
+      setError(
+        normalizeUploadError(
+          uploadError instanceof Error ? uploadError.message : "No se pudo subir el archivo.",
+        ),
+      );
+    } finally {
+      setUploadingTarget(null);
+    }
+  }
+
+  function appendGalleryUrls(publicUrls: string[]) {
+    if (!publicUrls.length) return;
+    setForm((prev) => {
+      const images = asImageArray(asRecord(prev.data).images);
+      const next = [...images];
+      publicUrls.forEach((url) => {
+        next.push({ src: url, alt: "" });
+      });
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          images: next,
+        },
+      };
+    });
+  }
+
+  async function uploadGalleryFiles(files: File[]) {
+    if (!files.length) return;
+
+    setUploadingTarget("visual_gallery");
+    setTargetProgress("visual_gallery", 0);
+    setMessage("");
+    setError("");
+
+    const uploadedUrls: string[] = [];
+    const errors: string[] = [];
+
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      try {
+        const asset = await uploadAssetToLibrary({
+          file,
+          expectedKind: "image",
+          scope: "section",
+          pageKey: form.pageKey,
+          sectionKey: form.sectionKey,
+          onProgress: (value) => {
+            const progress = Math.round(((index + value / 100) / files.length) * 100);
+            setTargetProgress("visual_gallery", progress);
+          },
+        });
+        uploadedUrls.push(asset.public_url);
+      } catch (uploadError) {
+        errors.push(
+          normalizeUploadError(
+            uploadError instanceof Error ? uploadError.message : "No se pudo subir una imagen.",
+          ),
+        );
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      appendGalleryUrls(uploadedUrls);
+      setMessage(
+        uploadedUrls.length === 1
+          ? "Archivo subido correctamente."
+          : `${uploadedUrls.length} archivos subidos correctamente.`,
+      );
+    }
+
+    if (errors.length > 0) {
+      setError(errors[0] ?? "No se pudieron subir algunos archivos.");
+    }
+
+    setUploadingTarget(null);
+  }
+
+  function openLibrary(target: MediaFieldTarget) {
+    setLibraryTarget(target);
+    setIsLibraryOpen(true);
+  }
+
+  function handleLibraryConfirm(selectedAssets: Array<Tables<"cms_assets">>) {
+    if (!libraryTarget || !selectedAssets.length) return;
+
+    const first = selectedAssets[0];
+    if (!first) return;
+
+    if (libraryTarget === "hero.videoSrc") {
+      setHeroMediaField("videoSrc", first.public_url);
+      setMessage("Recurso aplicado desde biblioteca.");
+      return;
+    }
+
+    if (libraryTarget === "hero.imageSrc") {
+      setHeroMediaField("imageSrc", first.public_url);
+      setMessage("Recurso aplicado desde biblioteca.");
+      return;
+    }
+
+    if (libraryTarget === "hero.posterSrc") {
+      setHeroMediaField("posterSrc", first.public_url);
+      setMessage("Recurso aplicado desde biblioteca.");
+      return;
+    }
+
+    if (libraryTarget === "showreel.videoSrc") {
+      setDataField("videoSrc", first.public_url);
+      setMessage("Recurso aplicado desde biblioteca.");
+      return;
+    }
+
+    if (libraryTarget === "showreel.posterSrc") {
+      setDataField("posterSrc", first.public_url);
+      setMessage("Recurso aplicado desde biblioteca.");
+      return;
+    }
+
+    const imageUrls = selectedAssets
+      .filter((asset) => asset.kind === "image")
+      .map((asset) => asset.public_url);
+    appendGalleryUrls(imageUrls);
+    setMessage(
+      imageUrls.length > 1
+        ? `${imageUrls.length} imágenes añadidas desde biblioteca.`
+        : "Imagen añadida desde biblioteca.",
+    );
   }
 
   function resetForm() {
@@ -572,9 +857,42 @@ export function SectionsManager() {
                   <option value="image">Imagen</option>
                 </select>
               </label>
-              <TextInput label="URL de vídeo" value={asString(media.videoSrc)} onChange={(value) => setDataField("media", { ...media, videoSrc: value })} />
-              <TextInput label="URL imagen" value={asString(media.imageSrc)} onChange={(value) => setDataField("media", { ...media, imageSrc: value })} />
-              <TextInput label="URL poster" value={asString(media.posterSrc)} onChange={(value) => setDataField("media", { ...media, posterSrc: value })} />
+              <div className="md:col-span-2">
+                <MediaUrlField
+                  label="URL de vídeo"
+                  value={asString(media.videoSrc)}
+                  kind="video"
+                  uploading={uploadingTarget === "hero.videoSrc"}
+                  progress={uploadProgress["hero.videoSrc"]}
+                  onChange={(value) => setHeroMediaField("videoSrc", value)}
+                  onUpload={() => heroVideoInputRef.current?.click()}
+                  onPickFromLibrary={() => openLibrary("hero.videoSrc")}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <MediaUrlField
+                  label="URL imagen"
+                  value={asString(media.imageSrc)}
+                  kind="image"
+                  uploading={uploadingTarget === "hero.imageSrc"}
+                  progress={uploadProgress["hero.imageSrc"]}
+                  onChange={(value) => setHeroMediaField("imageSrc", value)}
+                  onUpload={() => heroImageInputRef.current?.click()}
+                  onPickFromLibrary={() => openLibrary("hero.imageSrc")}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <MediaUrlField
+                  label="URL poster"
+                  value={asString(media.posterSrc)}
+                  kind="image"
+                  uploading={uploadingTarget === "hero.posterSrc"}
+                  progress={uploadProgress["hero.posterSrc"]}
+                  onChange={(value) => setHeroMediaField("posterSrc", value)}
+                  onUpload={() => heroPosterInputRef.current?.click()}
+                  onPickFromLibrary={() => openLibrary("hero.posterSrc")}
+                />
+              </div>
               <TextInput label="Color de respaldo" value={asString(media.fallbackColor)} onChange={(value) => setDataField("media", { ...media, fallbackColor: value })} />
               <NumberInput label="Opacidad de overlay" min={0} max={1} step={0.01} value={asNumber(media.overlayOpacity, 0.4)} onChange={(value) => setDataField("media", { ...media, overlayOpacity: value })} />
               <NumberInput label="Velocidad de reproducción" min={0.25} max={2} step={0.01} value={asNumber(media.playbackRate, 0.85)} onChange={(value) => setDataField("media", { ...media, playbackRate: value })} />
@@ -692,8 +1010,30 @@ export function SectionsManager() {
           <div className="grid gap-4 md:grid-cols-2">
             <TextInput label="Titulo" value={asString(data.heading)} onChange={(value) => setDataField("heading", value)} />
             <TextInput label="Pie de foto" value={asString(data.caption)} onChange={(value) => setDataField("caption", value)} />
-            <TextInput label="URL de vídeo" value={asString(data.videoSrc)} onChange={(value) => setDataField("videoSrc", value)} />
-            <TextInput label="URL poster" value={asString(data.posterSrc)} onChange={(value) => setDataField("posterSrc", value)} />
+            <div className="md:col-span-2">
+              <MediaUrlField
+                label="URL de vídeo"
+                value={asString(data.videoSrc)}
+                kind="video"
+                uploading={uploadingTarget === "showreel.videoSrc"}
+                progress={uploadProgress["showreel.videoSrc"]}
+                onChange={(value) => setDataField("videoSrc", value)}
+                onUpload={() => showreelVideoInputRef.current?.click()}
+                onPickFromLibrary={() => openLibrary("showreel.videoSrc")}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <MediaUrlField
+                label="URL poster"
+                value={asString(data.posterSrc)}
+                kind="image"
+                uploading={uploadingTarget === "showreel.posterSrc"}
+                progress={uploadProgress["showreel.posterSrc"]}
+                onChange={(value) => setDataField("posterSrc", value)}
+                onUpload={() => showreelPosterInputRef.current?.click()}
+                onPickFromLibrary={() => openLibrary("showreel.posterSrc")}
+              />
+            </div>
             <NumberInput label="Opacidad de overlay" min={0} max={1} step={0.01} value={asNumber(data.overlayOpacity, 0.24)} onChange={(value) => setDataField("overlayOpacity", value)} />
           </div>
         );
@@ -701,6 +1041,59 @@ export function SectionsManager() {
         return (
           <>
             <TextInput label="Titulo" value={asString(data.heading)} onChange={(value) => setDataField("heading", value)} />
+            <div
+              onDragOver={(event) => {
+                event.preventDefault();
+                setGalleryDropActive(true);
+              }}
+              onDragLeave={() => setGalleryDropActive(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setGalleryDropActive(false);
+                const dropped = Array.from(event.dataTransfer.files ?? []);
+                void uploadGalleryFiles(dropped);
+              }}
+              className={`space-y-3 rounded-lg border p-4 ${
+                galleryDropActive
+                  ? "border-emerald-300/40 bg-emerald-500/10"
+                  : "border-white/10 bg-black/20"
+              }`}
+            >
+              <p className="text-sm text-neutral-200">Sube imágenes para la galería</p>
+              <p className="text-xs text-neutral-500">
+                Arrastra imágenes aquí o usa los botones para subir y reutilizar recursos.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  disabled={uploadingTarget === "visual_gallery"}
+                  className="rounded-md border border-white/20 px-3 py-1.5 text-xs text-neutral-200 transition-colors hover:bg-white/10 disabled:cursor-not-allowed"
+                >
+                  {uploadingTarget === "visual_gallery" ? "Subiendo..." : "Subir imágenes a R2"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openLibrary("visual_gallery")}
+                  className="rounded-md border border-white/20 px-3 py-1.5 text-xs text-neutral-200 transition-colors hover:bg-white/10"
+                >
+                  Elegir de biblioteca
+                </button>
+              </div>
+              {uploadingTarget === "visual_gallery" ? (
+                <div className="space-y-1">
+                  <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full bg-emerald-300 transition-all"
+                      style={{ width: `${uploadProgress.visual_gallery}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-neutral-400">
+                    Subiendo archivo... {uploadProgress.visual_gallery}%
+                  </p>
+                </div>
+              ) : null}
+            </div>
             <ImageListField label="Imágenes" values={asImageArray(data.images)} onChange={(values) => setDataField("images", values)} />
           </>
         );
@@ -711,6 +1104,124 @@ export function SectionsManager() {
 
   return (
     <section className="space-y-8">
+      <input
+        ref={heroVideoInputRef}
+        type="file"
+        accept={VIDEO_ACCEPT}
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            void uploadSingleMediaField({
+              file,
+              target: "hero.videoSrc",
+              expectedKind: "video",
+              onDone: (publicUrl) => setHeroMediaField("videoSrc", publicUrl),
+            });
+          }
+          event.currentTarget.value = "";
+        }}
+      />
+      <input
+        ref={heroImageInputRef}
+        type="file"
+        accept={IMAGE_ACCEPT}
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            void uploadSingleMediaField({
+              file,
+              target: "hero.imageSrc",
+              expectedKind: "image",
+              onDone: (publicUrl) => setHeroMediaField("imageSrc", publicUrl),
+            });
+          }
+          event.currentTarget.value = "";
+        }}
+      />
+      <input
+        ref={heroPosterInputRef}
+        type="file"
+        accept={IMAGE_ACCEPT}
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            void uploadSingleMediaField({
+              file,
+              target: "hero.posterSrc",
+              expectedKind: "image",
+              onDone: (publicUrl) => setHeroMediaField("posterSrc", publicUrl),
+            });
+          }
+          event.currentTarget.value = "";
+        }}
+      />
+      <input
+        ref={showreelVideoInputRef}
+        type="file"
+        accept={VIDEO_ACCEPT}
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            void uploadSingleMediaField({
+              file,
+              target: "showreel.videoSrc",
+              expectedKind: "video",
+              onDone: (publicUrl) => setDataField("videoSrc", publicUrl),
+            });
+          }
+          event.currentTarget.value = "";
+        }}
+      />
+      <input
+        ref={showreelPosterInputRef}
+        type="file"
+        accept={IMAGE_ACCEPT}
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            void uploadSingleMediaField({
+              file,
+              target: "showreel.posterSrc",
+              expectedKind: "image",
+              onDone: (publicUrl) => setDataField("posterSrc", publicUrl),
+            });
+          }
+          event.currentTarget.value = "";
+        }}
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept={IMAGE_ACCEPT}
+        multiple
+        className="hidden"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          void uploadGalleryFiles(files);
+          event.currentTarget.value = "";
+        }}
+      />
+
+      <MediaLibraryPicker
+        abierto={isLibraryOpen}
+        onClose={() => setIsLibraryOpen(false)}
+        onConfirm={handleLibraryConfirm}
+        seleccionMultiple={libraryTarget === "visual_gallery"}
+        tipoPermitido={
+          libraryTarget === "hero.videoSrc" || libraryTarget === "showreel.videoSrc"
+            ? "video"
+            : libraryTarget
+              ? "image"
+              : "all"
+        }
+        textoConfirmar={libraryTarget === "visual_gallery" ? "Añadir seleccionados" : "Usar este archivo"}
+      />
+
       <div className="space-y-2">
         <h1 className="font-display text-4xl tracking-wide">Secciones</h1>
         <p className="text-sm text-neutral-400">Editor visual por sección con validación Zod y modo JSON opcional.</p>

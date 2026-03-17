@@ -139,6 +139,64 @@ export async function createProjectMedia(
   return supabase.from("project_media").insert(payload).select("*").single();
 }
 
+export async function listCmsAssets(
+  supabase: ServerSupabase,
+  filters?: { search?: string; kind?: "image" | "video"; limit?: number },
+) {
+  let query = supabase
+    .from("cms_assets")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(filters?.limit ?? 120);
+
+  if (filters?.kind) {
+    query = query.eq("kind", filters.kind);
+  }
+
+  if (filters?.search) {
+    const term = filters.search.replace(/[%_]/g, "").trim();
+    if (term) {
+      query = query.ilike("filename", `%${term}%`);
+    }
+  }
+
+  return query;
+}
+
+export async function createOrUpdateCmsAsset(
+  supabase: ServerSupabase,
+  payload: TablesInsert<"cms_assets">,
+) {
+  return supabase
+    .from("cms_assets")
+    .upsert(payload, { onConflict: "storage_key", ignoreDuplicates: false })
+    .select("*")
+    .single();
+}
+
+export async function getCmsAssetById(supabase: ServerSupabase, assetId: string) {
+  return supabase.from("cms_assets").select("*").eq("id", assetId).maybeSingle();
+}
+
+export async function getCmsAssetByStorageKey(supabase: ServerSupabase, storageKey: string) {
+  return supabase
+    .from("cms_assets")
+    .select("*")
+    .eq("storage_key", storageKey)
+    .maybeSingle();
+}
+
+export async function deleteCmsAssetById(supabase: ServerSupabase, assetId: string) {
+  return supabase.from("cms_assets").delete().eq("id", assetId);
+}
+
+export async function getProjectMediaByPublicUrl(
+  supabase: ServerSupabase,
+  publicUrl: string,
+) {
+  return supabase.from("project_media").select("id").eq("public_url", publicUrl).limit(1);
+}
+
 export async function getProjectMediaById(
   supabase: ServerSupabase,
   mediaId: string,
@@ -164,6 +222,14 @@ export async function deleteProjectMediaById(
   return supabase.from("project_media").delete().eq("id", mediaId);
 }
 
+export async function updateProjectMediaById(
+  supabase: ServerSupabase,
+  mediaId: string,
+  payload: TablesUpdate<"project_media">,
+) {
+  return supabase.from("project_media").update(payload).eq("id", mediaId).select("*").single();
+}
+
 export async function listReleases(supabase: ServerSupabase) {
   return supabase
     .from("releases")
@@ -173,6 +239,10 @@ export async function listReleases(supabase: ServerSupabase) {
 
 export async function getReleaseById(supabase: ServerSupabase, releaseId: string) {
   return supabase.from("releases").select("*").eq("id", releaseId).maybeSingle();
+}
+
+export async function deleteReleaseById(supabase: ServerSupabase, releaseId: string) {
+  return supabase.from("releases").delete().eq("id", releaseId);
 }
 
 export async function createRelease(

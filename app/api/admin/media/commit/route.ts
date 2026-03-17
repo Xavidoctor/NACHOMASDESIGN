@@ -3,10 +3,27 @@ import { ZodError } from "zod";
 
 import { requireEditorApi } from "@/src/lib/auth/require-api-role";
 import { writeAuditLog } from "@/src/lib/cms/audit";
-import { createProjectMedia, getProjectById } from "@/src/lib/cms/queries";
+import { createOrUpdateCmsAsset, createProjectMedia, getProjectById } from "@/src/lib/cms/queries";
 import { getR2Config } from "@/src/lib/r2/client";
 import { buildDeterministicMediaStorageKey } from "@/src/lib/r2/keys";
 import { mediaCommitSchema } from "@/src/lib/validators/media-schema";
+
+function inferMimeTypeFromPublicUrl(kind: "image" | "video", publicUrl: string) {
+  const lower = publicUrl.toLowerCase();
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".avif")) return "image/avif";
+  if (lower.endsWith(".svg")) return "image/svg+xml";
+  if (lower.endsWith(".mp4")) return "video/mp4";
+  if (lower.endsWith(".webm")) return "video/webm";
+  return kind === "image" ? "image/jpeg" : "video/mp4";
+}
+
+function inferFilenameFromStorageKey(storageKey: string) {
+  const segments = storageKey.split("/");
+  return segments[segments.length - 1] ?? storageKey;
+}
 
 export async function POST(request: NextRequest) {
   const auth = await requireEditorApi();
@@ -79,6 +96,27 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json({ error: "No se pudo registrar el recurso del proyecto." }, { status: 400 });
+    }
+
+    if (!isManual) {
+      const assetPayload = {
+        filename: inferFilenameFromStorageKey(storageKey),
+        kind: payload.kind,
+        storage_key: storageKey,
+        public_url: payload.publicUrl,
+        content_type: inferMimeTypeFromPublicUrl(payload.kind, payload.publicUrl),
+        file_size: null,
+        width: payload.width ?? null,
+        height: payload.height ?? null,
+        duration_seconds: payload.durationSeconds ?? null,
+        alt_text: payload.altText ?? null,
+        tags: [],
+        created_by: userId,
+      };
+      const { error: assetError } = await createOrUpdateCmsAsset(supabase, assetPayload);
+      if (assetError) {
+        console.error("cms_assets upsert failed", assetError.message);
+      }
     }
 
     await writeAuditLog(supabase, {

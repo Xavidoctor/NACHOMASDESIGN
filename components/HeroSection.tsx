@@ -73,12 +73,12 @@ export function HeroSection({ label, marqueeText, paragraph, disciplines, media 
         <motion.div
           className="hero-marquee-track"
           animate={{ x: ["0%", "-50%"] }}
-          transition={{ duration: 30, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+          transition={{ duration: 42, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
         >
           {[0, 1].map((group) => (
             <div key={group} className="hero-marquee-group" aria-hidden={group === 1}>
               {marqueeItems.map((item, index) => (
-                <span key={`${group}-${index}`} className="font-display text-[27vw] leading-none tracking-[0.02em] text-white/20 md:text-[18vw]">
+                <span key={`${group}-${index}`} className="font-display text-[30vw] leading-none tracking-[0em] text-white/20 md:text-[20vw]">
                   {item}
                 </span>
               ))}

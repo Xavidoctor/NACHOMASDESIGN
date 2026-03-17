@@ -9,7 +9,7 @@ import type { Tables } from "@/src/types/database.types";
 type ProjectRow = Tables<"projects">;
 type ProjectStatus = "draft" | "published" | "archived";
 
-function getStatusLabel(status: ProjectStatus) {
+function statusLabel(status: ProjectStatus) {
   if (status === "draft") return "Borrador";
   if (status === "published") return "Publicado";
   return "Archivado";
@@ -32,6 +32,7 @@ export function ProjectsManager({ initialProjects }: { initialProjects: ProjectR
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState<ProjectStatus>("draft");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | ProjectStatus>("all");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -39,14 +40,23 @@ export function ProjectsManager({ initialProjects }: { initialProjects: ProjectR
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return projects;
-    return projects.filter((project) =>
-      [project.title, project.slug, project.category ?? ""]
-        .join(" ")
-        .toLowerCase()
-        .includes(term),
+    return projects.filter((project) => {
+      const matchesStatus = statusFilter === "all" || project.status === statusFilter;
+      const matchesTerm = !term || [project.title, project.slug, project.category ?? ""].join(" ").toLowerCase().includes(term);
+      return matchesStatus && matchesTerm;
+    });
+  }, [projects, search, statusFilter]);
+
+  const statusCounters = useMemo(() => {
+    return projects.reduce(
+      (acc, project) => {
+        acc.total += 1;
+        acc[project.status] += 1;
+        return acc;
+      },
+      { total: 0, draft: 0, published: 0, archived: 0 },
     );
-  }, [projects, search]);
+  }, [projects]);
 
   async function refreshProjects() {
     const response = await fetch("/api/admin/projects", { cache: "no-store" });
@@ -68,14 +78,7 @@ export function ProjectsManager({ initialProjects }: { initialProjects: ProjectR
       const response = await fetch("/api/admin/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug: finalSlug,
-          title,
-          category: category || null,
-          status,
-          featured: false,
-          seoJson: {},
-        }),
+        body: JSON.stringify({ slug: finalSlug, title, category: category || null, status, featured: false, seoJson: {} }),
       });
 
       const payload = await response.json();
@@ -83,22 +86,22 @@ export function ProjectsManager({ initialProjects }: { initialProjects: ProjectR
         throw new Error(payload.error ?? "No se pudo crear el proyecto.");
       }
 
-      setMessage("Proyecto creado.");
+      setMessage("Proyecto creado. Abriendo editor.");
       setTitle("");
       setSlug("");
       setCategory("");
       await refreshProjects();
       router.push(`/admin/projects/${payload.data.id}`);
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error inesperado");
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : "Error inesperado al crear el proyecto.");
     } finally {
       setIsLoading(false);
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("¿Eliminar este proyecto?")) return;
+    if (!confirm("¿Quieres eliminar este proyecto?")) return;
 
     setIsLoading(true);
     setError("");
@@ -117,8 +120,8 @@ export function ProjectsManager({ initialProjects }: { initialProjects: ProjectR
 
       setMessage("Proyecto eliminado.");
       await refreshProjects();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error inesperado");
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Error inesperado al eliminar.");
     } finally {
       setIsLoading(false);
     }
@@ -128,149 +131,83 @@ export function ProjectsManager({ initialProjects }: { initialProjects: ProjectR
     <section className="space-y-8">
       <div className="space-y-2">
         <h1 className="font-display text-4xl tracking-wide">Proyectos</h1>
-        <p className="text-sm text-neutral-400">
-          Listado y alta inicial de proyectos. Edita cada proyecto en detalle desde su página.
-        </p>
+        <p className="text-sm text-neutral-400">Crea proyectos nuevos, filtra rápido y entra al editor con un clic.</p>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="rounded-full border border-white/20 bg-black/35 px-2.5 py-1 text-neutral-300">Total: {statusCounters.total}</span>
+          <span className="rounded-full border border-white/20 bg-black/35 px-2.5 py-1 text-neutral-300">Borrador: {statusCounters.draft}</span>
+          <span className="rounded-full border border-white/20 bg-black/35 px-2.5 py-1 text-neutral-300">Publicado: {statusCounters.published}</span>
+          <span className="rounded-full border border-white/20 bg-black/35 px-2.5 py-1 text-neutral-300">Archivado: {statusCounters.archived}</span>
+        </div>
       </div>
 
-      <form
-        onSubmit={handleCreate}
-        className="grid gap-4 rounded-lg border border-white/10 bg-white/[0.02] p-5"
-      >
+      <form onSubmit={handleCreate} className="space-y-4 rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-5">
+        <h2 className="font-display text-2xl tracking-wide">Nuevo proyecto</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <label className="space-y-1 text-sm">
             <span className="text-neutral-300">Título</span>
-            <input
-              required
-              value={title}
-              onChange={(event) => {
-                const nextTitle = event.target.value;
-                setTitle(nextTitle);
-                if (!slug) {
-                  setSlug(slugify(nextTitle));
-                }
-              }}
-              className="w-full rounded-md border border-white/15 bg-black/40 px-3 py-2"
-            />
+            <input required value={title} onChange={(event) => { const next = event.target.value; setTitle(next); if (!slug) setSlug(slugify(next)); }} placeholder="Título" className="w-full rounded-md border border-white/15 bg-black/40 px-3 py-2 text-sm" />
           </label>
-
           <label className="space-y-1 text-sm">
-            <span className="text-neutral-300">Slug</span>
-            <input
-              required
-              value={slug}
-              onChange={(event) => setSlug(slugify(event.target.value))}
-              className="w-full rounded-md border border-white/15 bg-black/40 px-3 py-2"
-            />
+            <span className="text-neutral-300">Identificador URL</span>
+            <input required value={slug} onChange={(event) => setSlug(slugify(event.target.value))} placeholder="proyecto-ejemplo" className="w-full rounded-md border border-white/15 bg-black/40 px-3 py-2 text-sm" />
           </label>
-
           <label className="space-y-1 text-sm">
             <span className="text-neutral-300">Categoría</span>
-            <input
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              className="w-full rounded-md border border-white/15 bg-black/40 px-3 py-2"
-            />
+            <input value={category} onChange={(event) => setCategory(event.target.value)} placeholder="Categoría" className="w-full rounded-md border border-white/15 bg-black/40 px-3 py-2 text-sm" />
           </label>
-
           <label className="space-y-1 text-sm">
-            <span className="text-neutral-300">Estado</span>
-            <select
-              value={status}
-              onChange={(event) =>
-                setStatus(event.target.value as ProjectStatus)
-              }
-              className="w-full rounded-md border border-white/15 bg-black/40 px-3 py-2"
-            >
-              <option value="draft">Borrador</option>
-              <option value="published">Publicado</option>
-              <option value="archived">Archivado</option>
-            </select>
+            <span className="text-neutral-300">Estado inicial</span>
+            <select value={status} onChange={(event) => setStatus(event.target.value as ProjectStatus)} className="w-full rounded-md border border-white/15 bg-black/40 px-3 py-2 text-sm"><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select>
           </label>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="rounded-md border border-white/25 px-4 py-2 text-sm transition-colors hover:bg-white/10 disabled:cursor-not-allowed"
-          >
-            Crear proyecto
-          </button>
-          <button
-            type="button"
-            onClick={() => void refreshProjects()}
-            className="rounded-md border border-white/15 px-4 py-2 text-sm text-neutral-300 transition-colors hover:bg-white/5"
-          >
-            Recargar
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="submit" disabled={isLoading} className="rounded-md border border-white/25 px-4 py-2 text-sm transition-colors hover:bg-white/10 disabled:cursor-not-allowed">Crear proyecto</button>
+          <button type="button" onClick={() => void refreshProjects()} className="rounded-md border border-white/15 px-4 py-2 text-sm text-neutral-300 transition-colors hover:bg-white/5">Recargar</button>
           {message ? <span className="text-sm text-emerald-300">{message}</span> : null}
           {error ? <span className="text-sm text-red-300">{error}</span> : null}
         </div>
       </form>
 
-      <div className="space-y-3">
-        <input
-          placeholder="Buscar por título, slug o categoría..."
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          className="w-full rounded-md border border-white/15 bg-black/40 px-3 py-2 text-sm md:max-w-md"
-        />
-
-        <div className="overflow-x-auto rounded-lg border border-white/10">
-          <table className="min-w-full divide-y divide-white/10 text-sm">
-            <thead className="bg-white/[0.03] text-xs uppercase tracking-[0.1em] text-neutral-400">
-              <tr>
-                <th className="px-3 py-2 text-left">Título</th>
-                <th className="px-3 py-2 text-left">Slug</th>
-                <th className="px-3 py-2 text-left">Estado</th>
-                <th className="px-3 py-2 text-left">Destacado</th>
-                <th className="px-3 py-2 text-left">Actualizado</th>
-                <th className="px-3 py-2 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filtered.map((project) => (
-                <tr key={project.id}>
-                  <td className="px-3 py-2 text-neutral-200">{project.title}</td>
-                  <td className="px-3 py-2 text-neutral-300">{project.slug}</td>
-                  <td className="px-3 py-2 text-neutral-300">
-                    {getStatusLabel(project.status)}
-                  </td>
-                  <td className="px-3 py-2 text-neutral-300">
-                    {project.featured ? "Si" : "No"}
-                  </td>
-                  <td className="px-3 py-2 text-neutral-400">
-                    {new Date(project.updated_at).toLocaleString()}
-                  </td>
-                  <td className="space-x-2 px-3 py-2 text-right">
-                    <Link
-                      href={`/admin/projects/${project.id}`}
-                      className="rounded-md border border-white/15 px-2 py-1 text-xs text-neutral-200 transition-colors hover:bg-white/10"
-                    >
-                      Editar
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete(project.id)}
-                      className="rounded-md border border-red-400/30 px-2 py-1 text-xs text-red-300 transition-colors hover:bg-red-500/10"
-                    >
-                      Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {!filtered.length ? (
-                <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-neutral-400">
-                    No hay proyectos.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+      <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.02] p-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="w-full space-y-1 text-sm md:max-w-md">
+            <span className="text-neutral-300">Buscar proyecto</span>
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por título, identificador o categoría" className="w-full rounded-md border border-white/15 bg-black/40 px-3 py-2 text-sm" />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span className="text-neutral-300">Filtrar por estado</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "all" | ProjectStatus)} className="rounded-md border border-white/15 bg-black/40 px-3 py-2 text-sm"><option value="all">Todos los estados</option><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select>
+          </label>
+          <p className="text-xs uppercase tracking-[0.12em] text-neutral-500">{filtered.length} resultado(s)</p>
         </div>
-      </div>
+
+        {filtered.length ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((project) => (
+              <article key={project.id} className="space-y-3 rounded-lg border border-white/10 bg-black/30 p-4">
+                <div className="space-y-1">
+                  <h3 className="text-base font-medium text-white">{project.title}</h3>
+                  <p className="text-xs text-neutral-400">/{project.slug}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-300">
+                  <span className="rounded-full border border-white/20 px-2 py-1">{statusLabel(project.status)}</span>
+                  <span className="rounded-full border border-white/20 px-2 py-1">{project.category || "Sin categoría"}</span>
+                  <span className="rounded-full border border-white/20 px-2 py-1">{project.featured ? "Destacado" : "Normal"}</span>
+                </div>
+                <p className="text-xs text-neutral-500">Actualizado: {new Date(project.updated_at).toLocaleString("es-ES")}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link href={`/admin/projects/${project.id}`} className="rounded-md border border-white/25 px-3 py-1 text-xs text-neutral-200 transition-colors hover:bg-white/10">Abrir editor</Link>
+                  <button type="button" onClick={() => void handleDelete(project.id)} className="rounded-md border border-red-400/30 px-3 py-1 text-xs text-red-300 transition-colors hover:bg-red-500/10">Eliminar</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-white/10 bg-black/25 p-6 text-sm text-neutral-400">
+            {projects.length ? "No hay resultados para el filtro actual." : "Aún no hay proyectos creados."}
+          </div>
+        )}
+      </section>
     </section>
   );
 }

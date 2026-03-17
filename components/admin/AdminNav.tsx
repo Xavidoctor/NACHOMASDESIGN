@@ -11,6 +11,7 @@ const navItems = [
   { href: "/admin/releases", label: "Publicaciones" },
   { href: "/admin/leads", label: "Contactos" },
   { href: "/admin/users", label: "Usuarios" },
+  { href: "/admin/guia", label: "Guía del panel" },
 ];
 
 export function AdminNav() {

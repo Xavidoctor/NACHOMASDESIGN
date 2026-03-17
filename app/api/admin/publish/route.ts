@@ -4,7 +4,7 @@ import { ZodError } from "zod";
 
 import { requireAdminApi } from "@/src/lib/auth/require-api-role";
 import { writeAuditLog } from "@/src/lib/cms/audit";
-import { publishSnapshotAndContent } from "@/src/lib/cms/publish";
+import { PublishPrerequisiteError, publishSnapshotAndContent } from "@/src/lib/cms/publish";
 import { publishPayloadSchema } from "@/src/lib/validators/release-schema";
 
 function runRevalidation(slugs: string[]) {
@@ -58,7 +58,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    void error;
+    if (error instanceof PublishPrerequisiteError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
+
+    console.error("[admin.publish] error", error);
     return NextResponse.json({ error: "Error interno al publicar." }, { status: 500 });
   }
 }

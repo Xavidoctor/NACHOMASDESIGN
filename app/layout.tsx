@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Antonio } from "next/font/google";
+import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 import "./globals.css";
 import { siteConfig } from "@/content/site-content";
 import { getPublicContent } from "@/src/lib/cms/public-content";
@@ -58,7 +59,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${antonio.variable} font-sans`}>{children}</body>
+      <body className={`${antonio.variable} font-sans`}>
+        <AnalyticsTracker />
+        {children}
+      </body>
     </html>
   );
 }

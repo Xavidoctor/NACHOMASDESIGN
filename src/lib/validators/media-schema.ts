@@ -23,7 +23,7 @@ const urlOrPathSchema = z.string().trim().min(1).max(500).refine((value) => {
   } catch {
     return false;
   }
-}, "publicUrl debe ser una URL http(s) o una ruta absoluta /assets/...");
+}, "La URL del recurso debe ser http(s) o una ruta absoluta que empiece por /.");
 
 const basePresignSchema = z.object({
   filename: z.string().trim().min(1).max(255),
@@ -42,7 +42,7 @@ export const mediaPresignSchema = basePresignSchema.superRefine((value, ctx) => 
   if (!allowedMimes.has(value.contentType)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: `MIME no permitido para ${value.kind}.`,
+      message: "Formato de archivo no permitido para este tipo de recurso.",
       path: ["contentType"],
     });
   }
@@ -58,7 +58,7 @@ export const mediaPresignSchema = basePresignSchema.superRefine((value, ctx) => 
   if (!isImage && value.fileSizeBytes > maxVideoBytes) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: `El video supera ${Math.floor(maxVideoBytes / (1024 * 1024))}MB.`,
+      message: `El vídeo supera ${Math.floor(maxVideoBytes / (1024 * 1024))}MB.`,
       path: ["fileSizeBytes"],
     });
   }
@@ -83,11 +83,30 @@ export const mediaCommitSchema = z
     if ((value.role === "cover" || value.role === "hero") && !value.altText?.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "altText es obligatorio para cover y hero.",
+        message: "El texto alternativo es obligatorio para portada y principal.",
         path: ["altText"],
       });
     }
   });
+
+export const mediaUpdateSchema = z
+  .object({
+    id: z.string().uuid(),
+    role: projectMediaRoleSchema.optional(),
+    altText: z.string().trim().max(240).optional().nullable(),
+    caption: z.string().trim().max(500).optional().nullable(),
+    sortOrder: z.number().int().min(0).max(9999).optional(),
+  })
+  .refine(
+    (value) =>
+      value.role !== undefined ||
+      value.altText !== undefined ||
+      value.caption !== undefined ||
+      value.sortOrder !== undefined,
+    {
+      message: "Debes enviar al menos un campo para actualizar.",
+    },
+  );
 
 export const mediaDeleteSchema = z
   .object({
@@ -95,5 +114,5 @@ export const mediaDeleteSchema = z
     storageKey: z.string().trim().min(3).max(500).optional(),
   })
   .refine((value) => Boolean(value.id || value.storageKey), {
-    message: "Debes enviar id o storageKey para borrar media.",
+    message: "Debes indicar el identificador del recurso o su clave de almacenamiento.",
   });

@@ -1,16 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CONTACT_FORM_MIN_MESSAGE } from "@/lib/constants";
 import type { ContactFormValues } from "@/lib/contact-schema";
 
 const initialValues: ContactFormValues = {
   name: "",
   email: "",
+  phone: "",
   company: "",
   service: "",
   message: "",
-  website: ""
+  pageUrl: "",
+  source: "",
+  referrer: "",
+  utmSource: "",
+  utmMedium: "",
+  utmCampaign: "",
+  website: "",
 };
 
 type FormState = "idle" | "loading" | "success" | "error";
@@ -19,6 +26,19 @@ export function ContactForm() {
   const [values, setValues] = useState(initialValues);
   const [status, setStatus] = useState<FormState>("idle");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  useEffect(() => {
+    void fetch("/api/analytics/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventType: "contact_form_view",
+        path: window.location.pathname,
+        value: { source: "contact_form" },
+      }),
+    });
+  }, []);
 
   const update = (field: keyof ContactFormValues, value: string) => {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -27,6 +47,7 @@ export function ContactForm() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setSuccessMessage("");
 
     if (!values.name.trim() || !values.email.trim() || !values.service.trim()) {
       setStatus("error");
@@ -43,10 +64,21 @@ export function ContactForm() {
     setStatus("loading");
 
     try {
+      const params = new URLSearchParams(window.location.search);
+      const payloadBody = {
+        ...values,
+        pageUrl: window.location.href,
+        source: values.source || "web_contact_form",
+        referrer: document.referrer || "",
+        utmSource: params.get("utm_source") ?? "",
+        utmMedium: params.get("utm_medium") ?? "",
+        utmCampaign: params.get("utm_campaign") ?? "",
+      };
+
       const response = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values)
+        body: JSON.stringify(payloadBody)
       });
 
       const payload = await response.json();
@@ -57,7 +89,19 @@ export function ContactForm() {
       }
 
       setStatus("success");
+      setSuccessMessage(
+        payload.warning || "Mensaje enviado correctamente. Te responderemos lo antes posible.",
+      );
       setValues(initialValues);
+      void fetch("/api/analytics/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventType: "contact_form_submit",
+          path: window.location.pathname,
+          value: { source: "contact_form" },
+        }),
+      });
     } catch {
       setStatus("error");
       setError("Error de red. Intentalo de nuevo.");
@@ -98,6 +142,15 @@ export function ContactForm() {
         </label>
 
         <label className="space-y-2">
+          <span className="text-xs uppercase tracking-[0.16em] text-muted">Teléfono (opcional)</span>
+          <input
+            value={values.phone}
+            onChange={(event) => update("phone", event.target.value)}
+            className="focus-ring w-full border-b border-border/70 bg-transparent pb-3 text-sm text-foreground"
+          />
+        </label>
+
+        <label className="space-y-2">
           <span className="text-xs uppercase tracking-[0.16em] text-muted">Servicio</span>
           <input
             required
@@ -133,7 +186,7 @@ export function ContactForm() {
         {status === "loading" ? "Enviando..." : "Enviar mensaje"}
       </button>
 
-      {status === "success" ? <p className="mt-5 text-sm text-foreground">Mensaje enviado correctamente.</p> : null}
+      {status === "success" ? <p className="mt-5 text-sm text-foreground">{successMessage}</p> : null}
       {status === "error" && error ? <p className="mt-5 text-sm text-red-400">{error}</p> : null}
     </form>
   );

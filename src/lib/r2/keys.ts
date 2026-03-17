@@ -11,6 +11,16 @@ function cleanFilename(filename: string) {
     .slice(0, 120);
 }
 
+function cleanSegment(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9_-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+}
+
 export function buildProjectMediaStorageKey(params: {
   projectId?: string;
   kind: "image" | "video";
@@ -22,6 +32,39 @@ export function buildProjectMediaStorageKey(params: {
   const projectPart = params.projectId ?? "unassigned";
 
   return `projects/${projectPart}/${params.kind}/${datePart}-${randomPart}-${safeFilename}`;
+}
+
+export function buildCmsAssetStorageKey(params: {
+  kind: "image" | "video";
+  filename: string;
+  scope?: "project" | "section" | "setting" | "general";
+  pageKey?: string;
+  sectionKey?: string;
+  settingKey?: string;
+  folder?: string;
+}) {
+  const safeFilename = cleanFilename(params.filename) || "asset";
+  const datePart = new Date().toISOString().slice(0, 10);
+  const randomPart = crypto.randomUUID().slice(0, 8);
+  const scope = params.scope ?? "general";
+
+  if (scope === "section") {
+    const pageKey = cleanSegment(params.pageKey ?? "home") || "home";
+    const sectionKey = cleanSegment(params.sectionKey ?? "section") || "section";
+    return `cms/sections/${pageKey}/${sectionKey}/${params.kind}/${datePart}-${randomPart}-${safeFilename}`;
+  }
+
+  if (scope === "setting") {
+    const settingKey = cleanSegment(params.settingKey ?? "general") || "general";
+    return `cms/settings/${settingKey}/${params.kind}/${datePart}-${randomPart}-${safeFilename}`;
+  }
+
+  if (scope === "project") {
+    const folder = cleanSegment(params.folder ?? "general") || "general";
+    return `cms/projects/${folder}/${params.kind}/${datePart}-${randomPart}-${safeFilename}`;
+  }
+
+  return `cms/library/${params.kind}/${datePart}-${randomPart}-${safeFilename}`;
 }
 
 function slugifyText(value: string) {

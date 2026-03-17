@@ -1,14 +1,12 @@
-import { ModulePlaceholder } from "@/components/admin/ModulePlaceholder";
+import { UsersManager } from "@/components/admin/UsersManager";
 import { requireAdminPage } from "@/src/lib/auth/require-page-role";
 
 export default async function AdminUsersPage() {
-  await requireAdminPage();
+  const { supabase, profile } = await requireAdminPage();
+  const { data } = await supabase
+    .from("admin_profiles")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  return (
-    <ModulePlaceholder
-      title="Usuarios"
-      description="La gestión de usuarios internos (administrador/editor) se mantiene restringida al rol administrador."
-      phase="P4"
-    />
-  );
+  return <UsersManager initialUsers={data ?? []} isAdmin={profile.role === "admin"} />;
 }

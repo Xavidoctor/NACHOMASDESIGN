@@ -17,6 +17,7 @@ export function ReleasesManager({ initialReleases, isAdmin }: ReleasesManagerPro
   const [notes, setNotes] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   const [isRollingBackId, setIsRollingBackId] = useState<string | null>(null);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -96,6 +97,42 @@ export function ReleasesManager({ initialReleases, isAdmin }: ReleasesManagerPro
       setError(err instanceof Error ? err.message : "Error al restaurar la versión.");
     } finally {
       setIsRollingBackId(null);
+    }
+  }
+
+  async function handleDeleteRelease(releaseId: string) {
+    if (!isAdmin) {
+      setError("Solo el administrador puede eliminar versiones.");
+      return;
+    }
+
+    const confirmed = confirm(
+      "¿Quieres eliminar esta versión guardada? Esta acción no cambia la web publicada.",
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingId(releaseId);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/releases", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ releaseId }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No se pudo eliminar la versión.");
+      }
+
+      setMessage("Versión eliminada.");
+      await refreshReleases();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al eliminar la versión.");
+    } finally {
+      setIsDeletingId(null);
     }
   }
 
@@ -185,6 +222,14 @@ export function ReleasesManager({ initialReleases, isAdmin }: ReleasesManagerPro
                     className="rounded-md border border-white/20 px-2 py-1 text-xs text-neutral-200 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-neutral-500"
                   >
                     {isRollingBackId === release.id ? "..." : "Restaurar versión"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!isAdmin || isDeletingId === release.id}
+                    onClick={() => void handleDeleteRelease(release.id)}
+                    className="ml-2 rounded-md border border-red-400/30 px-2 py-1 text-xs text-red-300 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-neutral-500"
+                  >
+                    {isDeletingId === release.id ? "Eliminando..." : "Eliminar versión"}
                   </button>
                 </td>
               </tr>

@@ -35,6 +35,11 @@ function asString(value: unknown, fallback: string) {
   return typeof value === "string" && value.trim().length > 0 ? value : fallback;
 }
 
+function asOptionalString(value: unknown, fallback = "") {
+  if (typeof value !== "string") return fallback;
+  return value.trim();
+}
+
 function asNumber(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
@@ -49,16 +54,17 @@ function asStringArray(value: unknown, fallback: string[]) {
   return parsed.length > 0 ? parsed : fallback;
 }
 
-function asLinks(value: unknown, fallback: Array<{ label: string; href: string }>) {
+function asLinks(value: unknown, fallback: SocialLink[]) {
   if (!Array.isArray(value)) return fallback;
   const parsed = value
-    .map((item) => {
+    .map((item): SocialLink | null => {
       const obj = asObject(item);
       const label = typeof obj.label === "string" ? obj.label.trim() : "";
       const href = typeof obj.href === "string" ? obj.href.trim() : "";
-      return label && href ? { label, href } : null;
+      const logoUrl = typeof obj.logoUrl === "string" && obj.logoUrl.trim().length > 0 ? obj.logoUrl.trim() : undefined;
+      return label && href ? { label, href, ...(logoUrl ? { logoUrl } : {}) } : null;
     })
-    .filter((item): item is { label: string; href: string } => item !== null);
+    .filter((item): item is SocialLink => item !== null);
 
   return parsed.length > 0 ? parsed : fallback;
 }
@@ -346,7 +352,7 @@ export async function getPublicContent({
     contact: {
       heading: asString(contactSetting.heading, fallbackContent.contact.heading),
       intro: asString(contactSetting.intro, fallbackContent.contact.intro),
-      email: asString(contactSetting.email, fallbackContent.contact.email),
+      email: asOptionalString(contactSetting.email, fallbackContent.contact.email),
       contactLabel: asString(contactSetting.contactLabel, fallbackContent.contact.contactLabel),
       copyEmail: asString(contactSetting.copyEmail, fallbackContent.contact.copyEmail),
       whatsappLabel: asString(contactSetting.whatsappLabel, fallbackContent.contact.whatsappLabel),
@@ -357,10 +363,6 @@ export async function getPublicContent({
       copyright: asString(footerData.copyright, fallbackContent.footer.copyright),
     },
   };
-
-  if (!content.contact.email) {
-    content.contact.email = fallbackContent.contact.email;
-  }
 
   if (!content.nav.links.length) {
     content.nav.links = fallbackContent.nav.links;

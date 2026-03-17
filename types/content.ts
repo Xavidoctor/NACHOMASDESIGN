@@ -15,6 +15,7 @@ export type PortfolioProject = {
 export type SocialLink = {
   label: string;
   href: string;
+  logoUrl?: string;
 };
 
 export type SiteContent = {

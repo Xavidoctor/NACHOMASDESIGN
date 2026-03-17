@@ -19,6 +19,10 @@ export const rollbackPayloadSchema = z.object({
   releaseId: z.string().uuid(),
 });
 
+export const releaseDeletePayloadSchema = z.object({
+  releaseId: z.string().uuid(),
+});
+
 export const releaseSnapshotSchema = z.object({
   capturedAt: z.string(),
   siteSections: z.array(jsonSchema),

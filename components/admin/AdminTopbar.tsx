@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { BasicAdvancedToggle } from "@/components/admin/BasicAdvancedToggle";
+
 type AdminTopbarProps = {
   email: string;
   role: "admin" | "editor";
@@ -88,6 +90,7 @@ export function AdminTopbar({ email, role }: AdminTopbarProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          <BasicAdvancedToggle />
           <button
             type="button"
             onClick={() => void togglePreview(true)}

@@ -45,6 +45,7 @@ export function Navbar({ brand, links, email, copyEmailLabel, contactWhatsappLab
             <Link
               key={link.href}
               href={link.href}
+              data-cta={`nav-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
               className={`focus-ring text-[11px] uppercase tracking-[0.2em] transition-colors ${
                 scrolled ? "text-muted hover:text-foreground" : "text-white/72 hover:text-white"
               }`}
@@ -57,6 +58,7 @@ export function Navbar({ brand, links, email, copyEmailLabel, contactWhatsappLab
         <div className="hidden items-center gap-5 md:flex">
           <Link
             href="#contacto"
+            data-cta="nav-contacto"
             className={`focus-ring text-[11px] uppercase tracking-[0.2em] transition-opacity ${
               scrolled ? "text-foreground hover:opacity-70" : "text-white/92 hover:opacity-80"
             }`}
@@ -87,14 +89,14 @@ export function Navbar({ brand, links, email, copyEmailLabel, contactWhatsappLab
             <div className="container-width space-y-6 py-6">
               <div className="flex flex-col gap-4">
                 {links.map((link) => (
-                  <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="text-sm uppercase tracking-[0.14em] text-foreground">
+                  <Link key={link.href} href={link.href} data-cta={`menu-${link.label.toLowerCase().replace(/\s+/g, "-")}`} onClick={() => setOpen(false)} className="text-sm uppercase tracking-[0.14em] text-foreground">
                     {link.label}
                   </Link>
                 ))}
               </div>
 
               <div className="flex flex-col gap-3 border-t border-border pt-5">
-                <Link href="#contacto" className="w-fit text-sm text-foreground" onClick={() => setOpen(false)}>
+                <Link href="#contacto" data-cta="menu-contacto" className="w-fit text-sm text-foreground" onClick={() => setOpen(false)}>
                   Contacto
                 </Link>
               </div>

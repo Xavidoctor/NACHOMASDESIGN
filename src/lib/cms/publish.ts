@@ -4,6 +4,8 @@ import { createSupabaseAdminClient } from "@/src/lib/supabase/admin";
 import { buildCmsSnapshot } from "@/src/lib/cms/snapshot";
 import type { Tables } from "@/src/types/database.types";
 
+export class PublishPrerequisiteError extends Error {}
+
 export type PublishResult = {
   release: Tables<"releases">;
   publishedSectionCount: number;
@@ -13,22 +15,21 @@ export type PublishResult = {
 
 function buildDefaultReleaseLabel() {
   const timestamp = new Date().toISOString().replace("T", " ").slice(0, 16);
-  return `Release ${timestamp}`;
+  return `Publicación ${timestamp}`;
 }
 
 async function validateMinimumPublishableContent() {
   const admin = createSupabaseAdminClient();
 
-  const [{ data: heroDraft, error: heroError }, { data: projects, error: projectsError }] =
+  const [{ data: heroRows, error: heroError }, { data: projects, error: projectsError }] =
     await Promise.all([
       admin
         .from("site_sections")
-        .select("id")
+        .select("id,status")
         .eq("page_key", "home")
         .eq("section_key", "hero")
-        .eq("status", "draft")
         .eq("enabled", true)
-        .maybeSingle(),
+        .in("status", ["draft", "published"]),
       admin
         .from("projects")
         .select("id")
@@ -40,8 +41,8 @@ async function validateMinimumPublishableContent() {
     throw new Error(`Publish validation failed for hero section: ${heroError.message}`);
   }
 
-  if (!heroDraft) {
-    throw new Error("No hay hero en draft para publicar.");
+  if (!heroRows || heroRows.length === 0) {
+    throw new PublishPrerequisiteError("Debes tener una sección Hero activa en borrador o publicada.");
   }
 
   if (projectsError) {
@@ -49,7 +50,9 @@ async function validateMinimumPublishableContent() {
   }
 
   if (!projects || projects.length === 0) {
-    throw new Error("Debes tener al menos un proyecto en draft o published.");
+    throw new PublishPrerequisiteError(
+      "Debes tener al menos un proyecto en estado borrador o publicado.",
+    );
   }
 }
 
@@ -119,14 +122,16 @@ export async function publishSnapshotAndContent(params: {
   }
 
   const releaseLabel = params.label?.trim() || buildDefaultReleaseLabel();
-  const { data: release, error: releaseError } = await admin
+  const releasePayload = {
+    label: releaseLabel,
+    notes: params.notes?.trim() || null,
+    snapshot_json: snapshot,
+    published_by: params.actorId,
+  };
+
+  const { data: insertedRelease, error: releaseError } = await admin
     .from("releases")
-    .insert({
-      label: releaseLabel,
-      notes: params.notes?.trim() || null,
-      snapshot_json: snapshot,
-      published_by: params.actorId,
-    })
+    .insert(releasePayload)
     .select("*")
     .single();
 
@@ -135,7 +140,7 @@ export async function publishSnapshotAndContent(params: {
   }
 
   return {
-    release,
+    release: insertedRelease,
     publishedSectionCount: publishedSectionsPayload.length,
     publishedProjectCount: promotedProjects?.length ?? 0,
     revalidateSlugs: (publishedProjects ?? []).map((project) => project.slug),

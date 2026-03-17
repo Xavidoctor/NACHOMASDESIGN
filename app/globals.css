@@ -51,6 +51,6 @@ body {
 .hero-marquee-group {
   display: flex;
   align-items: center;
-  gap: clamp(2rem, 3vw, 4rem);
-  padding-right: clamp(2rem, 3vw, 4rem);
+  gap: 0;
+  padding-right: 0;
 }
